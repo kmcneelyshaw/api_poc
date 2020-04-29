@@ -1,0 +1,31 @@
+version: "3"
+
+services:
+    api:
+      build: .
+      command: gunicorn --reload --bind=0.0.0.0:8000 api.__main__:__hug_wsgi__
+      expose:
+        - "8000"
+      # Mounting the volume means when the code on the host is changed,
+      # the behavior in the container changes.  This allows for rapid development.
+      # In a production build, we would not mount the volume, but would have these files
+      # statically available within the container, since they get ADDed by the Dockerfile
+      volumes:
+        - .:/app
+      working_dir: /app    
+    nginx:
+      depends_on:
+        - api
+      # Deliberately avoid :latest as this was only tested with 1.17.10
+      image: nginx:1.17.10
+      # 80 on the host side threw me off: ngninx is listening on port 80,
+      # but in its own config, it's set up to proxy for 8000
+      ports:
+       - "8000:80"
+      volumes:
+        - .:/app
+        - ./config/nginx:/etc/nginx/conf.d
+    # If we truly wanted our database to be a persistent store, we would not put it in
+    # a container, but we're starting with a clean slate each time we bring up the services
+    db:
+        image: mongo:4.2.6
